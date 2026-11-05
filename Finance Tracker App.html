@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ApexFinance - Tracker & Budget</title>
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- FontAwesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+              900: '#064e3b',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom scrollbar and smooth transitions */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.05);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.3);
+      border-radius: 9999px;
+    }
+    .chart-container {
+      position: relative;
+      height: 260px;
+      width: 100%;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased flex flex-col selection:bg-emerald-500 selection:text-white">
+
+  <!-- Header & Navigation -->
+  <header class="sticky top-0 z-40 bg-slate-900/80 backdrop-blur-md border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        
+        <!-- Logo -->
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20 text-white font-bold text-xl">
+            <i class="fa-solid fa-wallet"></i>
+          </div>
+          <div>
+            <span class="text-xl font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">ApexFinance</span>
+            <span class="hidden sm:inline-block text-xs text-emerald-400 font-medium px-2 py-0.5 ml-2 rounded-full bg-emerald-950 border border-emerald-800/60">Live Tracker</span>
+          </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="flex items-center space-x-1 sm:space-x-2 bg-slate-800/80 p-1.5 rounded-xl border border-slate-700/60">
+          <button id="navDashboard" onclick="switchTab('dashboard')" class="flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-white bg-emerald-600 shadow-sm">
+            <i class="fa-solid fa-chart-pie text-xs"></i>
+            <span>Dashboard</span>
+          </button>
+          <button id="navTransactions" onclick="switchTab('transactions')" class="flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-700/50">
+            <i class="fa-solid fa-receipt text-xs"></i>
+            <span>Transactions</span>
+            <span id="navTxBadge" class="ml-1 text-[11px] px-1.5 py-0.2 rounded-full bg-slate-700 text-slate-300">0</span>
+          </button>
+        </nav>
+
+        <!-- Quick Action / Currency indicator -->
+        <div class="flex items-center space-x-2">
+          <button onclick="openModal('addTxModal')" class="flex items-center space-x-1.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold text-sm px-3.5 py-2 rounded-lg transition-colors shadow-lg shadow-emerald-500/10">
+            <i class="fa-solid fa-plus text-xs"></i>
+            <span class="hidden sm:inline">Add Entry</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- Top Key Metrics Cards (Always visible for quick high-level context) -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <!-- Total Balance -->
+      <div class="bg-slate-900/70 border border-slate-800/80 rounded-2xl p-4 sm:p-5 shadow-sm hover:border-slate-700 transition">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs sm:text-sm font-medium text-slate-400">Total Balance</span>
+          <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-sm">
+            <i class="fa-solid fa-vault"></i>
+          </div>
+        </div>
+        <div id="statTotalBalance" class="text-xl sm:text-2xl font-bold tracking-tight text-white">$0.00</div>
+        <div class="mt-1 flex items-center text-xs text-slate-400">
+          <span class="text-emerald-400 font-medium inline-flex items-center mr-1">
+            <i class="fa-solid fa-shield-halved text-[10px] mr-1"></i> Net Wealth
+          </span>
+        </div>
+      </div>
+
+      <!-- Total Income -->
+      <div class="bg-slate-900/70 border border-slate-800/80 rounded-2xl p-4 sm:p-5 shadow-sm hover:border-slate-700 transition">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs sm:text-sm font-medium text-slate-400">Total Income</span>
+          <div class="w-8 h-8 rounded-lg bg-teal-500/10 text-teal-400 flex items-center justify-center text-sm">
+            <i class="fa-solid fa-arrow-down-left"></i>
+          </div>
+        </div>
+        <div id="statTotalIncome" class="text-xl sm:text-2xl font-bold tracking-tight text-teal-400">+$0.00</div>
+        <div class="mt-1 text-xs text-slate-400">Incoming credits</div>
+      </div>
+
+      <!-- Total Expenses -->
+      <div class="bg-slate-900/70 border border-slate-800/80 rounded-2xl p-4 sm:p-5 shadow-sm hover:border-slate-700 transition">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs sm:text-sm font-medium text-slate-400">Total Expenses</span>
+          <div class="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-400 flex items-center justify-center text-sm">
+            <i class="fa-solid fa-arrow-up-right"></i>
+          </div>
+        </div>
+        <div id="statTotalExpenses" class="text-xl sm:text-2xl font-bold tracking-tight text-rose-400">-$0.00</div>
+        <div class="mt-1 text-xs text-slate-400">Outgoing payments</div>
+      </div>
+
+      <!-- Savings Rate -->
+      <div class="bg-slate-900/70 border border-slate-800/80 rounded-2xl p-4 sm:p-5 shadow-sm hover:border-slate-700 transition">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs sm:text-sm font-medium text-slate-400">Savings Rate</span>
+          <div class="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-sm">
+            <i class="fa-solid fa-piggy-bank"></i>
+          </div>
+        </div>
+        <div id="statSavingsRate" class="text-xl sm:text-2xl font-bold tracking-tight text-indigo-400">0%</div>
+        <div class="mt-1 text-xs text-slate-400" id="statNetSavings">$0.00 net saved</div>
+      </div>
+    </div>
+
+    <!-- ================= PAGE 1: DASHBOARD ================= -->
+    <section id="pageDashboard" class="space-y-6">
+      
+      <!-- Top Row: Pie/Donut Chart & Categorical Breakdown -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Expense Chart Card -->
+        <div class="lg:col-span-7 bg-slate-900/70 border border-slate-800 rounded-2xl p-5 sm:p-6 backdrop-blur">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-4 border-b border-slate-800/80 gap-2">
+            <div>
+              <h2 class="text-lg font-semibold text-white flex items-center gap-2">
+                <i class="fa-solid fa-chart-pie text-emerald-400"></i> Expense Breakdown
+              </h2>
+              <p class="text-xs text-slate-400">Categorical distribution of all outgoing expenses</p>
+            </div>
+            <span id="chartTotalLabel" class="text-xs font-semibold px-2.5 py-1 rounded-md bg-slate-800 text-slate-300 border border-slate-700">
+              Total Out: $0.00
+            </span>
+          </div>
+
+          <!-- Chart Area -->
+          <div class="chart-container mt-4 flex items-center justify-center">
+            <canvas id="expensePieChart"></canvas>
+            <div id="emptyChartMessage" class="hidden flex-col items-center justify-center text-slate-500 py-12">
+              <i class="fa-solid fa-basket-shopping text-3xl mb-2"></i>
+              <p class="text-sm">No expenses logged yet.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Category Breakdown Stats List -->
+        <div class="lg:col-span-5 bg-slate-900/70 border border-slate-800 rounded-2xl p-5 sm:p-6 flex flex-col justify-between backdrop-blur">
+          <div>
+            <div class="flex items-center justify-between pb-4 border-b border-slate-800/80 mb-3">
+              <h3 class="text-base font-semibold text-white">Categories</h3>
+              <span class="text-xs text-slate-400">Ranked by volume</span>
+            </div>
+            <div id="categorySummaryList" class="space-y-3 max-h-[280px] overflow-y-auto pr-1">
+              <!-- Dynamically Populated -->
+            </div>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-800 flex justify-between items-center text-xs text-slate-400">
+            <span>Updates automatically with every transaction</span>
+            <button onclick="switchTab('transactions')" class="text-emerald-400 hover:text-emerald-300 font-medium">Log more &rarr;</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Row: Upcoming Expenses & Quick Log / Recent activity banner -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Upcoming Expenses Section -->
+        <div class="lg:col-span-7 bg-slate-900/70 border border-slate-800 rounded-2xl p-5 sm:p-6 backdrop-blur">
+          <div class="flex items-center justify-between pb-4 border-b border-slate-800/80 mb-4">
+            <div>
+              <h2 class="text-lg font-semibold text-white flex items-center gap-2">
+                <i class="fa-regular fa-calendar-check text-emerald-400"></i> Upcoming Expenses & Bills
+              </h2>
+              <p class="text-xs text-slate-400">Track and anticipate upcoming obligations</p>
+            </div>
+            <button onclick="openModal('addUpcomingModal')" class="text-xs bg-slate-800 hover:bg-slate-700 text-emerald-400 font-semibold px-3 py-1.5 rounded-lg border border-slate-700 flex items-center gap-1.5 transition">
+              <i class="fa-solid fa-plus text-[10px]"></i>
+              <span>Add Bill</span>
+            </button>
+          </div>
+
+          <!-- Upcoming bills list -->
+          <div id="upcomingExpensesList" class="space-y-2.5">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+
+        <!-- Quick Tips & Financial Health Overview -->
+        <div class="lg:col-span-5 bg-gradient-to-br from-slate-900/90 to-slate-900/40 border border-slate-800 rounded-2xl p-5 sm:p-6 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center space-x-2 text-emerald-400 mb-3">
+              <i class="fa-solid fa-lightbulb"></i>
+              <h3 class="text-sm font-semibold uppercase tracking-wider">Budget Health Insights</h3>
+            </div>
+            <p id="budgetInsightText" class="text-sm text-slate-300 leading-relaxed mb-4">
+              Analyzing your cash flow...
+            </p>
+            
+            <div class="space-y-2.5 pt-2 border-t border-slate-800/80 text-xs">
+              <div class="flex justify-between items-center py-1">
+                <span class="text-slate-400">Active Recurring Bills</span>
+                <span id="activeBillsCount" class="font-semibold text-white">0 bills</span>
+              </div>
+              <div class="flex justify-between items-center py-1">
+                <span class="text-slate-400">Upcoming Total Due</span>
+                <span id="upcomingTotalAmount" class="font-semibold text-rose-400">$0.00</span>
+              </div>
+              <div class="flex justify-between items-center py-1">
+                <span class="text-slate-400">Next Due Date</span>
+                <span id="nextDueDate" class="font-medium text-slate-300">None</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-5 p-3 rounded-xl bg-slate-800/40 border border-slate-800 flex items-center justify-between">
+            <span class="text-xs text-slate-400">Need to record a new transaction?</span>
+            <button onclick="openModal('addTxModal')" class="text-xs text-emerald-400 hover:text-emerald-300 font-medium flex items-center gap-1">
+              Create entry <i class="fa-solid fa-arrow-right text-[10px]"></i>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ================= PAGE 2: TRANSACTIONS ================= -->
+    <section id="pageTransactions" class="hidden space-y-6">
+      
+      <!-- Top Action bar with Search, Filters, and New Button -->
+      <div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between backdrop-blur">
+        
+        <!-- Search bar -->
+        <div class="relative flex-1 max-w-md">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+          <input type="text" id="txSearchInput" oninput="renderTransactionsTable()" placeholder="Search description, category, or note..." 
+                 class="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500">
+        </div>
+
+        <!-- Filters & Action Button -->
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- Type Filter -->
+          <select id="txTypeFilter" onchange="renderTransactionsTable()" class="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50">
+            <option value="all">All Types</option>
+            <option value="expense">Expenses Only</option>
+            <option value="income">Income Only</option>
+          </select>
+
+          <!-- Category Filter -->
+          <select id="txCategoryFilter" onchange="renderTransactionsTable()" class="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50">
+            <option value="all">All Categories</option>
+          </select>
+
+          <!-- Trigger Modal -->
+          <button onclick="openModal('addTxModal')" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold text-sm px-4 py-2 rounded-xl flex items-center space-x-1.5 transition ml-auto shadow-md shadow-emerald-500/10">
+            <i class="fa-solid fa-plus text-xs"></i>
+            <span>Add Transaction</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Transaction List / Table Card -->
+      <div class="bg-slate-900/70 border border-slate-800 rounded-2xl overflow-hidden backdrop-blur">
+        
+        <!-- Header -->
+        <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+          <div>
+            <h2 class="text-base font-semibold text-white">Transaction History</h2>
+            <p class="text-xs text-slate-400" id="txCountStatus">Showing all records</p>
+          </div>
+          <button onclick="resetToSampleData()" class="text-xs text-slate-400 hover:text-slate-200 transition underline underline-offset-4">
+            Reset Demo Data
+          </button>
+        </div>
+
+        <!-- Responsive Table Container -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-300">
+            <thead class="bg-slate-800/50 text-xs uppercase text-slate-400 border-b border-slate-800 tracking-wider">
+              <tr>
+                <th scope="col" class="py-3 px-4 sm:px-6">Details</th>
+                <th scope="col" class="py-3 px-4 sm:px-6">Category</th>
+                <th scope="col" class="py-3 px-4 sm:px-6">Date</th>
+                <th scope="col" class="py-3 px-4 sm:px-6">Method</th>
+                <th scope="col" class="py-3 px-4 sm:px-6 text-right">Amount</th>
+                <th scope="col" class="py-3 px-4 sm:px-6 text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody id="txTableBody" class="divide-y divide-slate-800/60">
+              <!-- Dynamically populated rows -->
+            </tbody>
+          </table>
+
+          <!-- Empty State -->
+          <div id="noTxFound" class="hidden py-12 flex flex-col items-center justify-center text-slate-400">
+            <i class="fa-solid fa-receipt text-3xl mb-2 text-slate-600"></i>
+            <p class="text-sm font-medium">No transactions found matching your criteria.</p>
+            <p class="text-xs text-slate-500 mt-1">Try clearing filters or add a new transaction above.</p>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ================= MODALS ================= -->
+
+  <!-- Modal 1: Add Transaction -->
+  <div id="addTxModal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+        <h3 class="text-base font-semibold text-white flex items-center gap-2">
+          <i class="fa-solid fa-circle-plus text-emerald-400"></i> Add Transaction
+        </h3>
+        <button onclick="closeModal('addTxModal')" class="text-slate-400 hover:text-white transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <form id="txForm" onsubmit="handleTransactionSubmit(event)" class="p-6 space-y-4">
+        <!-- Transaction Type Switcher -->
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1.5">Transaction Type</label>
+          <div class="grid grid-cols-2 gap-2 p-1 bg-slate-800 rounded-xl">
+            <label class="cursor-pointer">
+              <input type="radio" name="txType" value="expense" checked class="peer sr-only" onchange="syncCategoryDropdown()">
+              <div class="text-center py-2 text-xs font-semibold rounded-lg text-slate-300 peer-checked:bg-rose-500 peer-checked:text-white transition">
+                <i class="fa-solid fa-arrow-trend-down mr-1"></i> Expense
+              </div>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="txType" value="income" class="peer sr-only" onchange="syncCategoryDropdown()">
+              <div class="text-center py-2 text-xs font-semibold rounded-lg text-slate-300 peer-checked:bg-emerald-500 peer-checked:text-slate-950 transition">
+                <i class="fa-solid fa-arrow-trend-up mr-1"></i> Income
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Description -->
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1.5">Description *</label>
+          <input type="text" id="txDescription" required placeholder="e.g. Grocery Store, Salary, Coffee" 
+                 class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+        </div>
+
+        <!-- Amount & Date Grid -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1.5">Amount ($) *</label>
+            <input type="number" step="0.01" min="0.01" id="txAmount" required placeholder="0.00" 
+                   class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1.5">Date *</label>
+            <input type="date" id="txDate" required 
+                   class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+        </div>
+
+        <!-- Category & Payment Method -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1.5">Category *</label>
+            <select id="txCategorySelect" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              <!-- Loaded dynamically -->
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1.5">Payment Method</label>
+            <select id="txPaymentMethod" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              <option value="Credit Card">Credit Card</option>
+              <option value="Debit Card">Debit Card</option>
+              <option value="Bank Transfer">Bank Transfer</option>
+              <option value="Cash">Cash</option>
+              <option value="UPI / Online">UPI / Online</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="pt-3 flex items-center justify-end space-x-2 border-t border-slate-800">
+          <button type="button" onclick="closeModal('addTxModal')" class="px-4 py-2 text-xs font-medium text-slate-400 hover:text-white rounded-lg transition">
+            Cancel
+          </button>
+          <button type="submit" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold px-5 py-2 text-xs rounded-xl shadow-md transition">
+            Save Entry
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 2: Add Upcoming Expense -->
+  <div id="addUpcomingModal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+        <h3 class="text-base font-semibold text-white flex items-center gap-2">
+          <i class="fa-regular fa-calendar-plus text-emerald-400"></i> Schedule Upcoming Bill
+        </h3>
+        <button onclick="closeModal('addUpcomingModal')" class="text-slate-400 hover:text-white transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <form id="upcomingForm" onsubmit="handleUpcomingSubmit(event)" class="p-6 space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1.5">Bill Name / Service *</label>
+          <input type="text" id="upcomingTitle" required placeholder="e.g. Netflix, Electricity, Rent" 
+                 class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1.5">Amount ($) *</label>
+            <input type="number" step="0.01" min="0.01" id="upcomingAmount" required placeholder="0.00" 
+                   class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1.5">Due Date *</label>
+            <input type="date" id="upcomingDate" required 
+                   class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1.5">Category *</label>
+          <select id="upcomingCategory" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            <option value="Rent & Utilities">Rent & Utilities</option>
+            <option value="Subscriptions">Subscriptions</option>
+            <option value="Food & Dining">Food & Dining</option>
+            <option value="Healthcare">Healthcare</option>
+            <option value="Transport">Transport</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+
+        <div class="pt-3 flex items-center justify-end space-x-2 border-t border-slate-800">
+          <button type="button" onclick="closeModal('addUpcomingModal')" class="px-4 py-2 text-xs font-medium text-slate-400 hover:text-white rounded-lg transition">
+            Cancel
+          </button>
+          <button type="submit" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold px-5 py-2 text-xs rounded-xl shadow-md transition">
+            Schedule Bill
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 pointer-events-none transition-all duration-300 bg-slate-800 border border-slate-700 shadow-xl text-white text-xs px-4 py-3 rounded-xl flex items-center space-x-2">
+    <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400"></i>
+    <span id="toastMsg">Operation successful!</span>
+  </div>
+
+  <!-- Application Logic -->
+  <script>
+    // Categories configuration with icons and colors
+    const CATEGORY_META = {
+      'Rent & Utilities': { color: '#6366f1', icon: 'fa-house' },
+      'Food & Dining': { color: '#f59e0b', icon: 'fa-utensils' },
+      'Transport': { color: '#3b82f6', icon: 'fa-car' },
+      'Entertainment': { color: '#ec4899', icon: 'fa-film' },
+      'Shopping': { color: '#8b5cf6', icon: 'fa-bag-shopping' },
+      'Healthcare': { color: '#ef4444', icon: 'fa-heart-pulse' },
+      'Subscriptions': { color: '#14b8a6', icon: 'fa-tv' },
+      'Salary & Pay': { color: '#10b981', icon: 'fa-money-bill-wave' },
+      'Freelance': { color: '#06b6d4', icon: 'fa-laptop-code' },
+      'Investment': { color: '#84cc16', icon: 'fa-chart-line' },
+      'Other': { color: '#94a3b8', icon: 'fa-tag' }
+    };
+
+    const EXPENSE_CATEGORIES = [
+      'Food & Dining', 'Rent & Utilities', 'Transport', 
+      'Entertainment', 'Shopping', 'Healthcare', 'Subscriptions', 'Other'
+    ];
+
+    const INCOME_CATEGORIES = [
+      'Salary & Pay', 'Freelance', 'Investment', 'Other'
+    ];
+
+    // Initial Starter Data
+    const INITIAL_TRANSACTIONS = [
+      { id: 'tx-1', type: 'income', description: 'Tech Corp Monthly Salary', category: 'Salary & Pay', amount: 4850.00, date: '2026-11-01', method: 'Bank Transfer' },
+      { id: 'tx-2', type: 'expense', description: 'Modern Apartment Rent', category: 'Rent & Utilities', amount: 1450.00, date: '2026-11-02', method: 'Bank Transfer' },
+      { id: 'tx-3', type: 'expense', description: 'Weekly Whole Foods Groceries', category: 'Food & Dining', amount: 164.20, date: '2026-11-03', method: 'Credit Card' },
+      { id: 'tx-4', type: 'expense', description: 'Metro Pass & Fuel', category: 'Transport', amount: 85.00, date: '2026-11-03', method: 'Debit Card' },
+      { id: 'tx-5', type: 'income', description: 'UI/UX Client Project Milestone', category: 'Freelance', amount: 720.00, date: '2026-11-04', method: 'UPI / Online' },
+      { id: 'tx-6', type: 'expense', description: 'Dinner with friends at Bistro', category: 'Food & Dining', amount: 92.50, date: '2026-11-04', method: 'Credit Card' },
+      { id: 'tx-7', type: 'expense', description: 'Cinema Tickets & Popcorn', category: 'Entertainment', amount: 38.00, date: '2026-11-05', method: 'Cash' },
+      { id: 'tx-8', type: 'expense', description: 'Pharmacy Prescription', category: 'Healthcare', amount: 42.10, date: '2026-11-05', method: 'Debit Card' }
+    ];
+
+    const INITIAL_UPCOMING = [
+      { id: 'up-1', title: 'High-speed Fiber Internet', category: 'Rent & Utilities', amount: 69.99, dueDate: '2026-11-08', paid: false },
+      { id: 'up-2', title: 'Spotify Premium & Cloud Storage', category: 'Subscriptions', amount: 21.99, dueDate: '2026-11-12', paid: false },
+      { id: 'up-3', title: 'Gym & Fitness Membership', category: 'Healthcare', amount: 55.00, dueDate: '2026-11-15', paid: false },
+      { id: 'up-4', title: 'Electric & Gas Utility Bill', category: 'Rent & Utilities', amount: 115.40, dueDate: '2026-11-19', paid: true }
+    ];
+
+    // State
+    let transactions = [];
+    let upcomingBills = [];
+    let chartInstance = null;
+
+    // Initialize application
+    window.addEventListener('DOMContentLoaded', () => {
+      // Set today's date in form fields as default
+      const todayStr = new Date().toISOString().split('T')[0];
+      document.getElementById('txDate').value = todayStr;
+      document.getElementById('upcomingDate').value = todayStr;
+
+      loadState();
+      initChart();
+      updateAllUI();
+      populateFilterOptions();
+      syncCategoryDropdown();
+    });
+
+    // Local Storage helpers
+    function loadState() {
+      const storedTx = localStorage.getItem('apex_transactions');
+      const storedUp = localStorage.getItem('apex_upcoming');
+
+      transactions = storedTx ? JSON.parse(storedTx) : [...INITIAL_TRANSACTIONS];
+      upcomingBills = storedUp ? JSON.parse(storedUp) : [...INITIAL_UPCOMING];
+    }
+
+    function saveState() {
+      localStorage.setItem('apex_transactions', JSON.stringify(transactions));
+      localStorage.setItem('apex_upcoming', JSON.stringify(upcomingBills));
+    }
+
+    function resetToSampleData() {
+      transactions = [...INITIAL_TRANSACTIONS];
+      upcomingBills = [...INITIAL_UPCOMING];
+      saveState();
+      updateAllUI();
+      showToast('Restored sample transactions & bills', 'info');
+    }
+
+    // Tab Navigation
+    function switchTab(tabId) {
+      const pageDashboard = document.getElementById('pageDashboard');
+      const pageTransactions = document.getElementById('pageTransactions');
+      const navDashboard = document.getElementById('navDashboard');
+      const navTransactions = document.getElementById('navTransactions');
+
+      if (tabId === 'dashboard') {
+        pageDashboard.classList.remove('hidden');
+        pageTransactions.classList.add('hidden');
+
+        navDashboard.className = 'flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-white bg-emerald-600 shadow-sm';
+        navTransactions.className = 'flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-700/50';
+
+        // Re-render chart size in case of tab switch
+        if (chartInstance) {
+          chartInstance.resize();
+        }
+      } else {
+        pageDashboard.classList.add('hidden');
+        pageTransactions.classList.remove('hidden');
+
+        navDashboard.className = 'flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-700/50';
+        navTransactions.className = 'flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-white bg-emerald-600 shadow-sm';
+
+        renderTransactionsTable();
+      }
+    }
+
+    // Modal Control
+    function openModal(id) {
+      document.getElementById(id).classList.remove('hidden');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    // Format currency helper
+    function formatCurrency(amount) {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2
+      }).format(amount);
+    }
+
+    // Sync Category Options for Add Transaction Form based on Income / Expense radio
+    function syncCategoryDropdown() {
+      const isExpense = document.querySelector('input[name="txType"]:checked').value === 'expense';
+      const select = document.getElementById('txCategorySelect');
+      select.innerHTML = '';
+
+      const list = isExpense ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+      list.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat;
+        opt.textContent = cat;
+        select.appendChild(opt);
+      });
+    }
+
+    // Populate Category filter options in Transactions page
+    function populateFilterOptions() {
+      const filterSelect = document.getElementById('txCategoryFilter');
+      const allCats = Array.from(new Set([...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES]));
+      
+      // Preserve "All Categories"
+      filterSelect.innerHTML = '<option value="all">All Categories</option>';
+      allCats.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat;
+        opt.textContent = cat;
+        filterSelect.appendChild(opt);
+      });
+    }
+
+    // Core Chart Setup & Update
+    function initChart() {
+      const ctx = document.getElementById('expensePieChart').getContext('2d');
+      
+      chartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: [],
+          datasets: [{
+            data: [],
+            backgroundColor: [],
+            borderColor: '#0f172a',
+            borderWidth: 2.5,
+            hoverOffset: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false // We use our own customized interactive category list
+            },
+            tooltip: {
+              backgroundColor: '#1e293b',
+              titleColor: '#f8fafc',
+              bodyColor: '#cbd5e1',
+              padding: 12,
+              boxPadding: 6,
+              cornerRadius: 10,
+              callbacks: {
+                label: function(context) {
+                  const val = context.raw || 0;
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                  return ` ${context.label}: ${formatCurrency(val)} (${pct}%)`;
+                }
+              }
+            }
+          },
+          cutout: '68%',
+          animation: {
+            animateScale: true,
+            animateRotate: true
+          }
+        }
+      });
+    }
+
+    // Update Overall UI & Synced Calculations
+    function updateAllUI() {
+      // 1. Calculate Summary Totals
+      let totalIncome = 0;
+      let totalExpenses = 0;
+      const expenseByCategory = {};
+
+      transactions.forEach(t => {
+        const amt = parseFloat(t.amount);
+        if (t.type === 'income') {
+          totalIncome += amt;
+        } else {
+          totalExpenses += amt;
+          expenseByCategory[t.category] = (expenseByCategory[t.category] || 0) + amt;
+        }
+      });
+
+      const totalBalance = totalIncome - totalExpenses;
+      const savingsRate = totalIncome > 0 ? Math.max(0, ((totalBalance / totalIncome) * 100)).toFixed(0) : 0;
+
+      // Update Top Stats
+      document.getElementById('statTotalBalance').textContent = formatCurrency(totalBalance);
+      document.getElementById('statTotalIncome').textContent = `+${formatCurrency(totalIncome)}`;
+      document.getElementById('statTotalExpenses').textContent = `-${formatCurrency(totalExpenses)}`;
+      document.getElementById('statSavingsRate').textContent = `${savingsRate}%`;
+      document.getElementById('statNetSavings').textContent = `${formatCurrency(totalBalance)} net saved`;
+      document.getElementById('chartTotalLabel').textContent = `Total Out: ${formatCurrency(totalExpenses)}`;
+      document.getElementById('navTxBadge').textContent = transactions.length;
+
+      // 2. Refresh Pie Chart
+      const catLabels = Object.keys(expenseByCategory);
+      const catValues = Object.values(expenseByCategory);
+      const catColors = catLabels.map(cat => (CATEGORY_META[cat]?.color || '#94a3b8'));
+
+      const emptyEl = document.getElementById('emptyChartMessage');
+      const canvasEl = document.getElementById('expensePieChart');
+
+      if (catValues.length === 0 || totalExpenses === 0) {
+        emptyEl.classList.remove('hidden');
+        canvasEl.classList.add('hidden');
+      } else {
+        emptyEl.classList.add('hidden');
+        canvasEl.classList.remove('hidden');
+
+        if (chartInstance) {
+          chartInstance.data.labels = catLabels;
+          chartInstance.data.datasets[0].data = catValues;
+          chartInstance.data.datasets[0].backgroundColor = catColors;
+          chartInstance.update();
+        }
+      }
+
+      // 3. Render Dashboard Category Breakdown List
+      renderCategoryList(expenseByCategory, totalExpenses);
+
+      // 4. Render Upcoming Bills
+      renderUpcomingExpenses();
+
+      // 5. Update Transactions Table
+      renderTransactionsTable();
+
+      // 6. Update Budget Insights
+      updateBudgetInsights(totalIncome, totalExpenses);
+    }
+
+    // Render Category list next to chart
+    function renderCategoryList(expenseByCategory, totalExpenses) {
+      const container = document.getElementById('categorySummaryList');
+      container.innerHTML = '';
+
+      const sortedEntries = Object.entries(expenseByCategory).sort((a, b) => b[1] - a[1]);
+
+      if (sortedEntries.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-8 text-xs text-slate-500">
+            No expenses categorized yet. Add an expense transaction to see the breakdown.
+          </div>
+        `;
+        return;
+      }
+
+      sortedEntries.forEach(([category, amount]) => {
+        const meta = CATEGORY_META[category] || { color: '#94a3b8', icon: 'fa-tag' };
+        const pct = totalExpenses > 0 ? ((amount / totalExpenses) * 100).toFixed(1) : '0.0';
+
+        const item = document.createElement('div');
+        item.className = 'p-2.5 rounded-xl bg-slate-800/40 border border-slate-800 flex items-center justify-between hover:bg-slate-800/70 transition';
+        item.innerHTML = `
+          <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs" style="background-color: ${meta.color}20; color: ${meta.color}">
+              <i class="fa-solid ${meta.icon}"></i>
+            </div>
+            <div>
+              <p class="text-xs font-semibold text-white">${category}</p>
+              <div class="w-24 bg-slate-700/60 rounded-full h-1.5 mt-1 overflow-hidden">
+                <div class="h-1.5 rounded-full" style="width: ${pct}%; background-color: ${meta.color}"></div>
+              </div>
+            </div>
+          </div>
+          <div class="text-right">
+            <span class="text-xs font-bold text-slate-100">${formatCurrency(amount)}</span>
+            <p class="text-[10px] text-slate-400">${pct}%</p>
+          </div>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    // Render Upcoming Bills Section
+    function renderUpcomingExpenses() {
+      const listContainer = document.getElementById('upcomingExpensesList');
+      listContainer.innerHTML = '';
+
+      if (upcomingBills.length === 0) {
+        listContainer.innerHTML = `
+          <div class="text-center py-6 text-xs text-slate-500 border border-dashed border-slate-800 rounded-xl">
+            No scheduled bills. Click "+ Add Bill" to stay on top of dues.
+          </div>
+        `;
+        document.getElementById('activeBillsCount').textContent = '0 bills';
+        document.getElementById('upcomingTotalAmount').textContent = '$0.00';
+        document.getElementById('nextDueDate').textContent = 'None';
+        return;
+      }
+
+      // Sort by due date
+      const sortedBills = [...upcomingBills].sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+
+      let pendingTotal = 0;
+      let pendingCount = 0;
+      let earliestPendingDate = null;
+
+      sortedBills.forEach(bill => {
+        if (!bill.paid) {
+          pendingTotal += parseFloat(bill.amount);
+          pendingCount++;
+          if (!earliestPendingDate) earliestPendingDate = bill.dueDate;
+        }
+
+        const meta = CATEGORY_META[bill.category] || { color: '#94a3b8', icon: 'fa-file-invoice' };
+        
+        // Days difference calculation
+        const due = new Date(bill.dueDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const diffTime = due - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        let dueBadgeClass = 'bg-slate-800 text-slate-300';
+        let dueBadgeText = `${bill.dueDate}`;
+
+        if (bill.paid) {
+          dueBadgeClass = 'bg-emerald-950/80 text-emerald-400 border border-emerald-800/60';
+          dueBadgeText = 'Paid';
+        } else if (diffDays < 0) {
+          dueBadgeClass = 'bg-rose-950/80 text-rose-400 border border-rose-800/60';
+          dueBadgeText = `Overdue (${Math.abs(diffDays)}d ago)`;
+        } else if (diffDays === 0) {
+          dueBadgeClass = 'bg-amber-950/80 text-amber-300 border border-amber-800/60 font-semibold';
+          dueBadgeText = 'Due Today';
+        } else if (diffDays <= 3) {
+          dueBadgeClass = 'bg-amber-950/60 text-amber-300 border border-amber-800/50';
+          dueBadgeText = `Due in ${diffDays}d`;
+        }
+
+        const item = document.createElement('div');
+        item.className = `p-3 rounded-xl border flex items-center justify-between transition ${
+          bill.paid ? 'bg-slate-900/30 border-slate-800/40 opacity-60' : 'bg-slate-800/40 border-slate-800 hover:border-slate-700'
+        }`;
+
+        item.innerHTML = `
+          <div class="flex items-center space-x-3">
+            <button onclick="toggleBillPaid('${bill.id}')" title="Toggle Paid Status" class="w-6 h-6 rounded-md flex items-center justify-center border transition ${
+              bill.paid ? 'bg-emerald-600 border-emerald-500 text-white' : 'border-slate-600 hover:border-emerald-400 text-transparent'
+            }">
+              <i class="fa-solid fa-check text-xs"></i>
+            </button>
+            <div>
+              <p class="text-xs sm:text-sm font-semibold ${bill.paid ? 'line-through text-slate-400' : 'text-white'}">${bill.title}</p>
+              <div class="flex items-center space-x-2 mt-0.5">
+                <span class="text-[10px] text-slate-400 flex items-center gap-1">
+                  <i class="fa-solid ${meta.icon} text-[9px]" style="color: ${meta.color}"></i> ${bill.category}
+                </span>
+                <span class="text-[10px] px-1.5 py-0.2 rounded ${dueBadgeClass}">${dueBadgeText}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center space-x-3">
+            <span class="text-xs sm:text-sm font-bold ${bill.paid ? 'text-slate-400' : 'text-rose-400'}">
+              ${formatCurrency(bill.amount)}
+            </span>
+            <button onclick="deleteUpcoming('${bill.id}')" class="text-slate-500 hover:text-rose-400 transition p-1" title="Delete Bill">
+              <i class="fa-regular fa-trash-can text-xs"></i>
+            </button>
+          </div>
+        `;
+
+        listContainer.appendChild(item);
+      });
+
+      // Quick insights sidebar sync
+      document.getElementById('activeBillsCount').textContent = `${pendingCount} unpaid`;
+      document.getElementById('upcomingTotalAmount').textContent = formatCurrency(pendingTotal);
+      document.getElementById('nextDueDate').textContent = earliestPendingDate || 'None pending';
+    }
+
+    // Toggle Paid status for upcoming bill
+    function toggleBillPaid(id) {
+      const bill = upcomingBills.find(b => b.id === id);
+      if (bill) {
+        bill.paid = !bill.paid;
+        
+        // If marked as paid, offer to log it as transaction
+        if (bill.paid) {
+          const autoLog = confirm(`Would you like to automatically log "${bill.title}" ($${bill.amount}) into your Transactions history as an expense?`);
+          if (autoLog) {
+            transactions.unshift({
+              id: 'tx-' + Date.now(),
+              type: 'expense',
+              description: bill.title + ' (Bill Paid)',
+              category: bill.category,
+              amount: parseFloat(bill.amount),
+              date: new Date().toISOString().split('T')[0],
+              method: 'Bank Transfer'
+            });
+            showToast('Bill marked as paid and added to transactions!');
+          } else {
+            showToast('Bill status updated to Paid');
+          }
+        } else {
+          showToast('Bill marked as unpaid');
+        }
+
+        saveState();
+        updateAllUI();
+      }
+    }
+
+    // Delete upcoming bill
+    function deleteUpcoming(id) {
+      upcomingBills = upcomingBills.filter(b => b.id !== id);
+      saveState();
+      updateAllUI();
+      showToast('Upcoming bill removed', 'info');
+    }
+
+    // Add upcoming bill submission
+    function handleUpcomingSubmit(e) {
+      e.preventDefault();
+      const title = document.getElementById('upcomingTitle').value.trim();
+      const amount = parseFloat(document.getElementById('upcomingAmount').value);
+      const dueDate = document.getElementById('upcomingDate').value;
+      const category = document.getElementById('upcomingCategory').value;
+
+      if (!title || isNaN(amount) || amount <= 0 || !dueDate) {
+        showToast('Please fill out all fields with valid values', 'error');
+        return;
+      }
+
+      upcomingBills.push({
+        id: 'up-' + Date.now(),
+        title,
+        amount,
+        dueDate,
+        category,
+        paid: false
+      });
+
+      saveState();
+      updateAllUI();
+      closeModal('addUpcomingModal');
+      document.getElementById('upcomingForm').reset();
+      showToast('Scheduled upcoming expense successfully!');
+    }
+
+    // Render Transaction Page Table
+    function renderTransactionsTable() {
+      const tbody = document.getElementById('txTableBody');
+      const emptyState = document.getElementById('noTxFound');
+      const searchVal = document.getElementById('txSearchInput').value.toLowerCase().trim();
+      const typeFilter = document.getElementById('txTypeFilter').value;
+      const catFilter = document.getElementById('txCategoryFilter').value;
+
+      // Filter transactions
+      const filtered = transactions.filter(t => {
+        const matchesSearch = t.description.toLowerCase().includes(searchVal) || 
+                              t.category.toLowerCase().includes(searchVal) ||
+                              (t.method && t.method.toLowerCase().includes(searchVal));
+
+        const matchesType = typeFilter === 'all' || t.type === typeFilter;
+        const matchesCategory = catFilter === 'all' || t.category === catFilter;
+
+        return matchesSearch && matchesType && matchesCategory;
+      });
+
+      // Update count
+      document.getElementById('txCountStatus').textContent = `Showing ${filtered.length} of ${transactions.length} transactions`;
+
+      tbody.innerHTML = '';
+
+      if (filtered.length === 0) {
+        emptyState.classList.remove('hidden');
+        return;
+      }
+      emptyState.classList.add('hidden');
+
+      filtered.forEach(tx => {
+        const meta = CATEGORY_META[tx.category] || { color: '#94a3b8', icon: 'fa-tag' };
+        const isExp = tx.type === 'expense';
+        const amountDisplay = isExp ? `-${formatCurrency(tx.amount)}` : `+${formatCurrency(tx.amount)}`;
+        const amountClass = isExp ? 'text-rose-400' : 'text-emerald-400';
+
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-slate-800/40 transition group';
+        row.innerHTML = `
+          <td class="py-3 px-4 sm:px-6">
+            <div class="flex items-center space-x-3">
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs shrink-0" style="background-color: ${meta.color}20; color: ${meta.color}">
+                <i class="fa-solid ${meta.icon}"></i>
+              </div>
+              <div>
+                <p class="font-medium text-white">${tx.description}</p>
+                <span class="text-[10px] sm:hidden text-slate-400">${tx.date} &bull; ${tx.category}</span>
+              </div>
+            </div>
+          </td>
+          <td class="py-3 px-4 sm:px-6 hidden sm:table-cell">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border" 
+                  style="border-color: ${meta.color}30; background-color: ${meta.color}10; color: ${meta.color}">
+              <span class="w-1.5 h-1.5 rounded-full" style="background-color: ${meta.color}"></span>
+              ${tx.category}
+            </span>
+          </td>
+          <td class="py-3 px-4 sm:px-6 hidden sm:table-cell text-xs text-slate-400">
+            ${tx.date}
+          </td>
+          <td class="py-3 px-4 sm:px-6 hidden md:table-cell text-xs text-slate-400">
+            <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[11px]">${tx.method || 'Card'}</span>
+          </td>
+          <td class="py-3 px-4 sm:px-6 text-right font-bold text-sm ${amountClass}">
+            ${amountDisplay}
+          </td>
+          <td class="py-3 px-4 sm:px-6 text-center">
+            <button onclick="deleteTransaction('${tx.id}')" title="Delete record" class="opacity-70 group-hover:opacity-100 text-slate-400 hover:text-rose-400 transition p-1">
+              <i class="fa-regular fa-trash-can text-xs"></i>
+            </button>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    // Add Transaction Submission
+    function handleTransactionSubmit(e) {
+      e.preventDefault();
+      const type = document.querySelector('input[name="txType"]:checked').value;
+      const description = document.getElementById('txDescription').value.trim();
+      const amount = parseFloat(document.getElementById('txAmount').value);
+      const date = document.getElementById('txDate').value;
+      const category = document.getElementById('txCategorySelect').value;
+      const method = document.getElementById('txPaymentMethod').value;
+
+      if (!description || isNaN(amount) || amount <= 0 || !date || !category) {
+        showToast('Please provide valid details', 'error');
+        return;
+      }
+
+      const newTx = {
+        id: 'tx-' + Date.now(),
+        type,
+        description,
+        amount,
+        date,
+        category,
+        method
+      };
+
+      // Add to front of history
+      transactions.unshift(newTx);
+      saveState();
+      updateAllUI();
+      closeModal('addTxModal');
+      document.getElementById('txForm').reset();
+      syncCategoryDropdown();
+
+      showToast(`${type === 'expense' ? 'Expense' : 'Income'} of ${formatCurrency(amount)} logged!`);
+    }
+
+    // Delete Transaction
+    function deleteTransaction(id) {
+      transactions = transactions.filter(t => t.id !== id);
+      saveState();
+      updateAllUI();
+      showToast('Transaction deleted', 'info');
+    }
+
+    // Dynamic budget insight message
+    function updateBudgetInsights(income, expense) {
+      const insightEl = document.getElementById('budgetInsightText');
+      if (income === 0 && expense === 0) {
+        insightEl.textContent = 'Welcome! Add your income and everyday expenses to receive intelligent spending insights.';
+        return;
+      }
+
+      const ratio = income > 0 ? (expense / income) * 100 : 100;
+
+      if (ratio < 50) {
+        insightEl.innerHTML = `<span class="text-emerald-400 font-medium">Outstanding financial health!</span> You are spending only <strong class="text-white">${ratio.toFixed(0)}%</strong> of your total earned income. Keep investing the surplus.`;
+      } else if (ratio <= 80) {
+        insightEl.innerHTML = `<span class="text-teal-400 font-medium">Healthy balance.</span> You are utilizing <strong class="text-white">${ratio.toFixed(0)}%</strong> of your income, keeping your savings and bills comfortably sustainable.`;
+      } else if (ratio <= 100) {
+        insightEl.innerHTML = `<span class="text-amber-400 font-medium">Tight budget alert.</span> Expenses make up <strong class="text-white">${ratio.toFixed(0)}%</strong> of your incoming cashflow. Consider monitoring non-essential dining and shopping.`;
+      } else {
+        insightEl.innerHTML = `<span class="text-rose-400 font-medium">Deficit warning.</span> Outgoing expenses currently surpass total income by <strong class="text-white">${formatCurrency(expense - income)}</strong>. Review upcoming subscriptions and trim discretionary items.`;
+      }
+    }
+
+    // Toast feedback function
+    let toastTimeout;
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMsg');
+      const toastIcon = document.getElementById('toastIcon');
+
+      clearTimeout(toastTimeout);
+
+      toastMsg.textContent = message;
+      if (type === 'error') {
+        toastIcon.className = 'fa-solid fa-circle-exclamation text-rose-400';
+      } else if (type === 'info') {
+        toastIcon.className = 'fa-solid fa-circle-info text-blue-400';
+      } else {
+        toastIcon.className = 'fa-solid fa-circle-check text-emerald-400';
+      }
+
+      toast.classList.remove('opacity-0', 'translate-y-20', 'pointer-events-none');
+      toast.classList.add('opacity-100', 'translate-y-0');
+
+      toastTimeout = setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-20', 'pointer-events-none');
+        toast.classList.remove('opacity-100', 'translate-y-0');
+      }, 3000);
+    }
+  </script>
+</body>
+</html>
